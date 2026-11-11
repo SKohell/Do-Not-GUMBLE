@@ -3,6 +3,10 @@ data/state.json
 data/*.json
 data/*.log
 
+# 本地发布工具（含令牌交互，不发布）
+push-github.ps1
+推送GitHub.bat
+
 # 本地密钥 / 令牌
 dove_token.txt
 *.token
