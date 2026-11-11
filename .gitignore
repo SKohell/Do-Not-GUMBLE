@@ -1,0 +1,20 @@
+# 运行时存档（游戏进度，不建议纳入版本库）
+data/state.json
+data/*.json
+data/*.log
+
+# 本地密钥 / 令牌
+dove_token.txt
+*.token
+.env
+
+# 系统与编辑器
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
+.idea/
+
+# 依赖与临时产物
+node_modules/
+*.log

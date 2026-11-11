@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>金融肉鸽 · 黄金赌鸽所</title>
+<link rel="stylesheet" href="/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>🕊️</text></svg>">
+</head>
+<body>
+
+<!-- 加入游戏 -->
+<div id="joinOverlay" class="overlay hidden">
+  <div class="join-box">
+    <div class="join-logo">🕊️</div>
+    <h1>金融肉鸽</h1>
+    <p class="join-sub">黄金赌鸽所 · 多人肉鸽理财模拟器</p>
+    <ul class="join-rules">
+      <li>💰 初始资金 <b>¥10,000</b>，每天吃饭喝水自动扣 <b>¥200</b></li>
+      <li>📈 基线 = 国际黄金实时价（新浪财经，美元/盎司 → 人民币/克）</li>
+      <li>🃏 技能卡可以短暂操纵大盘，也可以坑队友</li>
+      <li>🤖 AI 金融专家和你同场博弈，它破产就全员发卡 + AI 资金升级</li>
+      <li>🎰 没钱了？去打工房玩 21 点和轮盘翻身，还能赚经验</li>
+    </ul>
+    <input id="joinName" maxlength="12" placeholder="输入你的鸽子名（最多12字）">
+    <button id="joinBtn">入场开鸽</button>
+  </div>
+</div>
+
+<!-- 顶栏 -->
+<header id="topbar" class="hidden">
+  <div class="brand">🕊️ 金融肉鸽</div>
+  <nav id="tabs">
+    <button class="tab active" data-tab="main">📈 主界面</button>
+    <button class="tab" data-tab="chat">💬 聊天室</button>
+    <button class="tab" data-tab="casino">🎰 打工房</button>
+    <button class="tab" data-tab="forum">📰 贴吧</button>
+  </nav>
+  <div class="me">
+    <div class="me-row">
+      <span id="tbName">—</span>
+      <span class="lv-badge" id="tbLevel">Lv.1</span>
+    </div>
+    <div class="xpbar"><div id="tbXpFill"></div></div>
+    <div class="me-cash">💰 <b id="tbCash">0</b> · 身价 <b id="tbEquity">0</b></div>
+  </div>
+</header>
+
+<main id="app" class="hidden">
+
+  <!-- ========== 主界面 ========== -->
+  <section id="tab-main" class="page active">
+    <div class="grid-main">
+      <div class="card price-card">
+        <div class="price-head">
+          <div>
+            <div class="price-big">¥<span id="priceBig">---</span><span class="unit">/克</span></div>
+            <div class="price-sub">
+              <span id="priceUsd">COMEX ---</span>
+              <span id="priceBadge" class="badge">连接中…</span>
+            </div>
+          </div>
+          <div id="cardsActive"></div>
+        </div>
+        <canvas id="chart" width="860" height="260"></canvas>
+        <div class="chart-legend">近30分钟基线走势 · <span class="lg-red">🟥 拉盘</span> <span class="lg-green">🟩 砸盘</span>（1% ~ 10%，2分钟后缓步回归）</div>
+      </div>
+
+      <div class="card trade-card">
+        <h3>🛒 现货买卖 <span class="hint">Lv.1</span></h3>
+        <div class="trade-prices">
+          <div>买入价 <b id="tBuy">--</b></div>
+          <div>卖出价 <b id="tSell">--</b></div>
+          <div>持仓 <b id="tPos">--</b> g</div>
+          <div>持仓成本 <b id="tAvg">--</b></div>
+          <div>浮动盈亏 <b id="tFloat">--</b></div>
+        </div>
+        <div class="trade-row">
+          <label>买入金额 ¥</label>
+          <input id="buyAmt" type="number" min="1" placeholder="1000">
+          <button id="buyBtn" class="btn buy">买入</button>
+        </div>
+        <div class="quick">
+          <button data-buyf="0.1">10%</button><button data-buyf="0.25">25%</button>
+          <button data-buyf="0.5">50%</button><button data-buyf="1">梭哈</button>
+        </div>
+        <div class="trade-row">
+          <label>卖出克数 g</label>
+          <input id="sellAmt" type="number" min="0" step="0.01" placeholder="1.0">
+          <button id="sellBtn" class="btn sell">卖出</button>
+        </div>
+        <div class="quick">
+          <button data-sellf="0.25">25%</button><button data-sellf="0.5">50%</button>
+          <button data-sellf="1">清仓</button>
+        </div>
+      </div>
+
+      <div class="card contract-card">
+        <h3>📑 合约 · 做空/杠杆 <span class="hint" id="ctUnlock">Lv.5 解锁做空 · Lv.10 解锁杠杆</span></h3>
+        <div class="trade-row">
+          <select id="ctDir">
+            <option value="short">做空（看跌）</option>
+            <option value="long">做多（看涨）</option>
+          </select>
+          <select id="ctL">
+            <option value="1">1倍</option>
+            <option value="2">2倍</option>
+            <option value="3">3倍</option>
+            <option value="5">5倍</option>
+          </select>
+          <input id="ctMargin" type="number" min="100" placeholder="保证金 ¥">
+          <button id="ctOpenBtn" class="btn open">开仓</button>
+        </div>
+        <div id="ctList" class="ct-list"><div class="empty">暂无合约仓位</div></div>
+      </div>
+
+      <div class="card cards-card">
+        <h3>🃏 技能卡</h3>
+        <div id="cardRow" class="card-row"></div>
+        <div class="steal-row">
+          <select id="stealTarget"><option value="">— 选择行窃对象 —</option></select>
+          <button id="stealBtn" class="btn hand">🖐️ 出手</button>
+          <span class="hint" id="stealChance">成功率 3%</span>
+        </div>
+        <div id="cardHint" class="hint">红/绿卡影响全场基线；黄/蓝卡只影响你自己 10 分钟。</div>
+      </div>
+
+      <div class="card rank-card">
+        <h3>🏆 玩家排行榜</h3>
+        <ol id="lbList" class="lb-list"></ol>
+        <h3>🤖 AI 金融专家（无技能卡）</h3>
+        <div id="botList" class="bot-list"></div>
+        <div class="hint">AI 破产 → 全员发随机技能卡，AI 重组资金 ×(1 + 0.1×失败次数)</div>
+      </div>
+
+      <div class="card log-card">
+        <h3>📡 系统动态</h3>
+        <div id="logList" class="log-list"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 聊天室 ========== -->
+  <section id="tab-chat" class="page">
+    <div class="grid-chat">
+      <div class="card chat-card">
+        <div id="roomTabs" class="room-tabs">
+          <button class="rtab active" data-room="大厅">🏠 大厅</button>
+          <button class="rtab" data-room="闲聊灌水">💦 闲聊灌水</button>
+          <button class="rtab" data-room="交易喊单">📢 交易喊单</button>
+        </div>
+        <div id="chatList" class="chat-list"></div>
+        <div class="chat-input">
+          <input id="chatInput" maxlength="300" placeholder="说点什么…（Enter 发送）">
+          <button id="chatSend" class="btn">发送</button>
+        </div>
+      </div>
+      <div class="card chat-side">
+        <h3>👥 在线玩家</h3>
+        <ul id="chatOnline" class="online-list"></ul>
+        <div class="hint">同一台电脑开多个浏览器窗口（或无痕窗口）即可多人测试。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 打工房 ========== -->
+  <section id="tab-casino" class="page">
+    <div class="grid-casino">
+      <div class="card bj-card">
+        <h3>🃏 在线21点 <span class="hint">赢了 +5 经验 · Blackjack +8</span></h3>
+        <div class="bj-table">
+          <div class="bj-row"><span class="bj-label">庄家</span><div id="bjDealer" class="bj-cards"></div></div>
+          <div class="bj-row"><span class="bj-label">你</span><div id="bjPlayer" class="bj-cards"></div></div>
+          <div id="bjMsg" class="bj-msg">下注开始吧（¥50 ~ ¥2000）</div>
+        </div>
+        <div class="bj-actions">
+          <input id="bjBet" type="number" min="50" max="2000" value="100">
+          <button id="bjBetBtn" class="btn">下注发牌</button>
+          <button id="bjHitBtn" class="btn" disabled>要牌</button>
+          <button id="bjStandBtn" class="btn" disabled>停牌</button>
+          <button id="bjDoubleBtn" class="btn" disabled>加倍</button>
+        </div>
+      </div>
+      <div class="card rl-card">
+        <h3>🎰 轮盘 <span class="hint">欧式 0-36 · 赢了 +2 经验</span></h3>
+        <div class="rl-bets">
+          <button class="rl-bet red" data-type="red">红 ×2</button>
+          <button class="rl-bet black" data-type="black">黑 ×2</button>
+          <button class="rl-bet" data-type="odd">单 ×2</button>
+          <button class="rl-bet" data-type="even">双 ×2</button>
+          <button class="rl-bet" data-type="low">1-18 ×2</button>
+          <button class="rl-bet" data-type="high">19-36 ×2</button>
+          <button class="rl-bet green" data-type="num">押单号 ×36</button>
+        </div>
+        <div class="trade-row">
+          <input id="rlNum" type="number" min="0" max="36" placeholder="单号 0-36" class="short">
+          <input id="rlAmt" type="number" min="10" value="100">
+          <button id="rlSpin" class="btn">转！</button>
+        </div>
+        <div id="rlResult" class="rl-result">选择玩法和金额，开转。</div>
+        <div id="rlHistory" class="rl-history"></div>
+      </div>
+      <div class="card casino-tip">
+        <h3>💡 打工守则</h3>
+        <p>生活成本每天 ¥200，输光了别慌，赌桌是你最后的尊严。当然——庄家永远不亏，这是赌场的浪漫。</p>
+        <p>记住本游戏主题：<b>戒赌，从模拟开始。</b></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 贴吧 ========== -->
+  <section id="tab-forum" class="page">
+    <div class="grid-forum">
+      <div class="card ft-new">
+        <h3>✍️ 发帖（放心，没人知道你是谁）</h3>
+        <input id="ftTitle" maxlength="40" placeholder="标题党标题（必填）">
+        <textarea id="ftContent" maxlength="1000" placeholder="内容（可以纯编，迷惑视听是本吧传统艺能）"></textarea>
+        <button id="ftPostBtn" class="btn">发布</button>
+      </div>
+      <div class="card ft-list-card">
+        <h3>📰 金鸽吧</h3>
+        <div id="ftList"></div>
+      </div>
+      <div class="card ft-view-card hidden" id="ftViewCard">
+        <button id="ftBack" class="btn small">← 返回列表</button>
+        <div id="ftView"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="toast" class="toast hidden"></div>
+<script src="/app.js"></script>
+</body>
+</html>

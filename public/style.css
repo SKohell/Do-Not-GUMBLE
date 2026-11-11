@@ -1,0 +1,268 @@
+/* 金融肉鸽 · 黄金赌鸽所 —— 样式 */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0d0f14;
+  --panel: #151923;
+  --panel2: #1b2130;
+  --line: #2a3247;
+  --gold: #f5c542;
+  --gold2: #b8912e;
+  --txt: #e8e6df;
+  --dim: #8a93a8;
+  --red: #ff5d5d;
+  --green: #43d98c;
+  --blue: #5aa7ff;
+  --radius: 14px;
+}
+html, body { height: 100%; }
+body {
+  background: radial-gradient(1200px 600px at 70% -10%, #1a2135 0%, var(--bg) 55%);
+  color: var(--txt);
+  font-family: "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
+  font-size: 14px;
+}
+.hidden { display: none !important; }
+b { color: var(--gold); }
+
+/* ---------- 加入遮罩 ---------- */
+.overlay {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(5, 7, 12, 0.86); backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center;
+}
+.join-box {
+  width: min(520px, 92vw);
+  background: linear-gradient(160deg, #1c2333, #12151f);
+  border: 1px solid var(--line); border-radius: 20px;
+  padding: 34px 38px; text-align: center;
+  box-shadow: 0 30px 80px rgba(0,0,0,.6);
+}
+.join-logo { font-size: 52px; }
+.join-box h1 { color: var(--gold); font-size: 30px; letter-spacing: 6px; margin: 6px 0 2px; }
+.join-sub { color: var(--dim); margin-bottom: 16px; }
+.join-rules { text-align: left; color: var(--dim); line-height: 1.9; font-size: 13px; margin-bottom: 18px; padding-left: 6px; list-style: none; }
+#joinName {
+  width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line);
+  background: #0e1119; color: var(--txt); font-size: 15px; outline: none; text-align: center;
+}
+#joinName:focus { border-color: var(--gold2); }
+#joinBtn {
+  margin-top: 14px; width: 100%; padding: 12px; font-size: 16px; letter-spacing: 4px;
+  background: linear-gradient(135deg, var(--gold), #d9a92e); color: #201a05;
+  border: none; border-radius: 10px; cursor: pointer; font-weight: 700;
+}
+#joinBtn:hover { filter: brightness(1.08); }
+
+/* ---------- 顶栏 ---------- */
+#topbar {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: 18px;
+  padding: 10px 22px;
+  background: rgba(13, 15, 20, 0.92); backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+.brand { color: var(--gold); font-weight: 800; letter-spacing: 2px; white-space: nowrap; }
+#tabs { display: flex; gap: 6px; flex: 1; }
+.tab {
+  background: transparent; border: 1px solid transparent; color: var(--dim);
+  padding: 8px 16px; border-radius: 10px; cursor: pointer; font-size: 14px;
+}
+.tab:hover { color: var(--txt); }
+.tab.active { color: var(--gold); border-color: var(--line); background: var(--panel2); }
+.me { min-width: 200px; text-align: right; }
+.me-row { display: flex; justify-content: flex-end; gap: 8px; align-items: center; }
+.lv-badge { background: var(--panel2); border: 1px solid var(--gold2); color: var(--gold); font-size: 12px; border-radius: 20px; padding: 1px 10px; }
+.xpbar { height: 5px; background: #232a3d; border-radius: 4px; margin: 6px 0 4px; overflow: hidden; }
+#tbXpFill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--gold2), var(--gold)); border-radius: 4px; transition: width .4s; }
+.me-cash { color: var(--dim); font-size: 12px; }
+
+/* ---------- 布局 ---------- */
+main { padding: 18px 22px 40px; max-width: 1500px; margin: 0 auto; }
+.page { display: none; }
+.page.active { display: block; }
+.card {
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 16px 18px;
+}
+.card h3 { font-size: 15px; margin-bottom: 12px; color: var(--txt); }
+.hint { color: var(--dim); font-size: 12px; font-weight: 400; }
+.empty { color: var(--dim); text-align: center; padding: 14px 0; font-size: 13px; }
+.btn {
+  background: var(--panel2); color: var(--txt); border: 1px solid var(--line);
+  border-radius: 9px; padding: 8px 16px; cursor: pointer; font-size: 13px;
+}
+.btn:hover { border-color: var(--gold2); color: var(--gold); }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn.buy { background: rgba(255, 93, 93, .12); border-color: rgba(255,93,93,.4); color: var(--red); font-weight: 700; }
+.btn.sell { background: rgba(67, 217, 140, .1); border-color: rgba(67,217,140,.4); color: var(--green); font-weight: 700; }
+.btn.open { background: rgba(245, 197, 66, .1); border-color: rgba(245,197,66,.4); color: var(--gold); font-weight: 700; }
+.btn.hand { background: rgba(170, 120, 255, .1); border-color: rgba(170,120,255,.4); color: #bb92ff; }
+.btn.small { padding: 4px 10px; font-size: 12px; }
+input, select, textarea {
+  background: #0e1119; border: 1px solid var(--line); color: var(--txt);
+  border-radius: 9px; padding: 8px 10px; font-size: 13px; outline: none;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--gold2); }
+textarea { width: 100%; min-height: 80px; resize: vertical; }
+
+/* ---------- 主界面网格 ---------- */
+.grid-main {
+  display: grid; gap: 14px;
+  grid-template-columns: 2fr 1fr;
+  grid-template-areas: "price trade" "price contract" "cards rank" "log rank";
+}
+.price-card { grid-area: price; }
+.trade-card { grid-area: trade; }
+.contract-card { grid-area: contract; }
+.cards-card { grid-area: cards; }
+.rank-card { grid-area: rank; }
+.log-card { grid-area: log; }
+
+.price-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+.price-big { font-size: 42px; font-weight: 800; color: var(--gold); font-family: Consolas, monospace; }
+.price-big .unit { font-size: 14px; color: var(--dim); margin-left: 4px; }
+.price-sub { color: var(--dim); font-size: 13px; margin-top: 2px; display: flex; gap: 10px; align-items: center; }
+.badge { font-size: 11px; padding: 1px 8px; border-radius: 20px; background: var(--panel2); border: 1px solid var(--line); }
+.badge.real { color: var(--green); border-color: rgba(67,217,140,.5); }
+.badge.sim { color: var(--dim); }
+#chart { width: 100%; height: 260px; display: block; background: #0e1119; border-radius: 10px; border: 1px solid var(--line); }
+.chart-legend { color: var(--dim); font-size: 12px; margin-top: 6px; }
+.lg-red { color: var(--red); } .lg-green { color: var(--green); }
+.cards-active { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.active-card-chip {
+  font-size: 12px; padding: 4px 10px; border-radius: 8px; border: 1px solid;
+  animation: pulse 1.6s infinite;
+}
+@keyframes pulse { 50% { opacity: .65; } }
+
+.trade-prices { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; font-size: 13px; color: var(--dim); margin-bottom: 12px; }
+.trade-prices b { font-family: Consolas, monospace; }
+.trade-row { display: flex; gap: 8px; align-items: center; margin: 8px 0 4px; }
+.trade-row label { color: var(--dim); font-size: 12px; white-space: nowrap; }
+.trade-row input, .trade-row select { flex: 1; min-width: 0; }
+.quick { display: flex; gap: 6px; margin-bottom: 6px; }
+.quick button {
+  flex: 1; background: #12151f; border: 1px solid var(--line); color: var(--dim);
+  border-radius: 8px; padding: 4px 0; cursor: pointer; font-size: 12px;
+}
+.quick button:hover { color: var(--gold); border-color: var(--gold2); }
+
+.ct-list { display: flex; flex-direction: column; gap: 6px; max-height: 180px; overflow-y: auto; margin-top: 8px; }
+.ct-item {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; font-size: 13px;
+}
+.ct-item .pnl-pos { color: var(--green); } .ct-item .pnl-neg { color: var(--red); }
+
+.card-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.card-slot {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 10px;
+  padding: 6px 10px; font-size: 13px;
+}
+.card-slot .cnt { color: var(--gold); font-weight: 700; }
+.card-slot button { padding: 3px 10px; font-size: 12px; }
+.steal-row { display: flex; gap: 8px; align-items: center; }
+.steal-row select { flex: 1; }
+.cards-card .hint { display: block; margin-top: 10px; }
+
+.lb-list { list-style: none; }
+.lb-list li { display: flex; justify-content: space-between; padding: 5px 2px; border-bottom: 1px dashed #232a3d; font-size: 13px; }
+.lb-list li:first-child { color: var(--gold); }
+.rank-card h3 { margin-top: 14px; }
+.bot-item { display: flex; justify-content: space-between; padding: 5px 2px; border-bottom: 1px dashed #232a3d; font-size: 13px; color: var(--dim); }
+.bot-item .bf { color: var(--red); }
+
+.log-list { max-height: 240px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.log-item { font-size: 12.5px; color: var(--dim); padding: 4px 8px; background: var(--panel2); border-radius: 8px; }
+.log-item.card { color: #ffd479; }
+.log-item.level { color: var(--gold); }
+.log-item.bankrupt { color: var(--red); }
+.log-item.gift { color: #bb92ff; }
+.log-item.steal { color: #9fd0ff; }
+.log-item.casino { color: var(--green); }
+.log-item.warn { color: var(--red); }
+.log-item.sys { color: #7ee0ff; }
+
+/* ---------- 聊天室 ---------- */
+.grid-chat { display: grid; grid-template-columns: 1fr 260px; gap: 14px; }
+.room-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+.rtab { background: var(--panel2); border: 1px solid var(--line); color: var(--dim); border-radius: 9px; padding: 6px 14px; cursor: pointer; }
+.rtab.active { color: var(--gold); border-color: var(--gold2); }
+.chat-list { height: 56vh; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px; }
+.chat-msg { max-width: 78%; }
+.chat-msg .who { font-size: 12px; color: var(--gold2); margin-bottom: 2px; }
+.chat-msg .bubble { background: var(--panel2); border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; line-height: 1.5; word-break: break-all; }
+.chat-msg.self { align-self: flex-end; text-align: right; }
+.chat-msg.self .who { color: var(--blue); }
+.chat-msg.self .bubble { background: #20283c; }
+.chat-input { display: flex; gap: 8px; margin-top: 10px; }
+.chat-input input { flex: 1; }
+.online-list { list-style: none; }
+.online-list li { padding: 6px 4px; border-bottom: 1px dashed #232a3d; font-size: 13px; display: flex; justify-content: space-between; }
+.online-list .lv { color: var(--gold); font-size: 12px; }
+.chat-side .hint { display: block; margin-top: 12px; line-height: 1.6; }
+
+/* ---------- 打工房 ---------- */
+.grid-casino { display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px; }
+.casino-tip { grid-column: 1 / -1; color: var(--dim); line-height: 1.8; }
+.bj-table { background: radial-gradient(600px 300px at 50% 0%, #14301f, #0f1a13); border: 1px solid #23402c; border-radius: 12px; padding: 18px; margin-bottom: 12px; }
+.bj-row { display: flex; gap: 14px; align-items: center; margin: 10px 0; }
+.bj-label { color: var(--dim); font-size: 12px; width: 34px; }
+.bj-cards { display: flex; gap: 6px; min-height: 52px; align-items: center; flex-wrap: wrap; }
+.pcard {
+  width: 44px; height: 60px; border-radius: 7px; background: #fff; color: #111;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 15px; box-shadow: 0 3px 8px rgba(0,0,0,.5);
+}
+.pcard.red { color: #d0202e; }
+.pcard.back { background: #1d3a6b; color: #fff; }
+.bj-msg { text-align: center; color: var(--gold); min-height: 20px; margin-top: 6px; }
+.bj-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.bj-actions input { width: 110px; }
+
+.rl-bets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+.rl-bet { padding: 10px 6px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel2); color: var(--txt); cursor: pointer; font-size: 13px; }
+.rl-bet:hover { border-color: var(--gold2); }
+.rl-bet.sel { border-color: var(--gold); color: var(--gold); background: rgba(245,197,66,.08); }
+.rl-bet.red { color: #ff8080; } .rl-bet.black { color: #aeb8cc; } .rl-bet.green { color: var(--green); }
+.rl-result { text-align: center; font-size: 15px; margin: 12px 0; min-height: 24px; color: var(--gold); }
+.rl-history { display: flex; gap: 6px; flex-wrap: wrap; }
+.rl-chip {
+  width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; background: #222; color: #fff; border: 2px solid #444;
+}
+.rl-chip.red { background: #c0392b; border-color: #e74c3c; }
+.rl-chip.black { background: #111; border-color: #555; }
+.rl-chip.green { background: #147d46; border-color: #27ae60; }
+input.short { width: 110px; }
+
+/* ---------- 贴吧 ---------- */
+.grid-forum { display: grid; grid-template-columns: 320px 1fr; gap: 14px; }
+.ft-view-card { grid-column: 2; }
+.ft-new input { width: 100%; margin-bottom: 8px; }
+.ft-new .btn { width: 100%; margin-top: 8px; }
+.ft-item { padding: 10px 6px; border-bottom: 1px dashed #232a3d; cursor: pointer; }
+.ft-item:hover .ft-title { color: var(--gold); }
+.ft-title { font-size: 14px; }
+.ft-meta { color: var(--dim); font-size: 12px; margin-top: 3px; display: flex; gap: 10px; }
+.ft-tag { font-size: 11px; color: #ff9d9d; border: 1px solid rgba(255,150,150,.3); padding: 0 6px; border-radius: 20px; }
+.ft-post { padding: 10px 4px; border-bottom: 1px dashed #232a3d; }
+.ft-post .who { color: var(--gold2); font-size: 12px; margin-bottom: 4px; }
+.ft-post .body { line-height: 1.7; word-break: break-all; }
+.ft-reply { display: flex; gap: 8px; margin-top: 12px; }
+.ft-reply textarea { flex: 1; }
+
+/* ---------- Toast ---------- */
+.toast {
+  position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+  background: #232a3d; border: 1px solid var(--gold2); color: var(--gold);
+  padding: 10px 22px; border-radius: 12px; z-index: 60; font-size: 14px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.5);
+}
+
+@media (max-width: 1100px) {
+  .grid-main { grid-template-columns: 1fr; grid-template-areas: "price" "trade" "contract" "cards" "rank" "log"; }
+  .grid-chat, .grid-casino, .grid-forum { grid-template-columns: 1fr; }
+  .ft-view-card { grid-column: 1; }
+}
