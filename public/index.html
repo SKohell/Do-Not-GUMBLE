@@ -16,10 +16,10 @@
     <h1>金融肉鸽</h1>
     <p class="join-sub">黄金赌鸽所 · 多人肉鸽理财模拟器</p>
     <ul class="join-rules">
-      <li>💰 初始资金 <b>¥10,000</b>，每天吃饭喝水自动扣 <b>¥200</b></li>
-      <li>📈 基线 = 国际黄金实时价（新浪财经，美元/盎司 → 人民币/克）</li>
-      <li>🃏 技能卡可以短暂操纵大盘，也可以坑队友</li>
-      <li>🤖 AI 金融专家和你同场博弈，它破产就全员发卡 + AI 资金升级</li>
+      <li>💰 初始资金 <b>¥10,000</b>，每天 00:00（北京时间）自动扣 <b>¥200</b> 生活成本</li>
+      <li>📈 游戏基线 = <b>国际黄金实时价 − ¥700 固定基差</b>（新浪财经实时换算，波动更刺激）</li>
+      <li>🃏 新手送全色卡组，升级再抽卡；红绿卡能操纵大盘</li>
+      <li>🤖 AI 金融专家和你同场博弈：它资金枯竭则全员发卡 + AI 资金升级</li>
       <li>🎰 没钱了？去打工房玩 21 点和轮盘翻身，还能赚经验</li>
     </ul>
     <input id="joinName" maxlength="12" placeholder="输入你的鸽子名（最多12字）">
@@ -43,6 +43,7 @@
     </div>
     <div class="xpbar"><div id="tbXpFill"></div></div>
     <div class="me-cash">💰 <b id="tbCash">0</b> · 身价 <b id="tbEquity">0</b></div>
+    <div class="me-day"><span id="tbDay">距生活扣款 --:--:--</span><span class="daily-cost">−¥200</span></div>
   </div>
 </header>
 
@@ -57,13 +58,15 @@
             <div class="price-big">¥<span id="priceBig">---</span><span class="unit">/克</span></div>
             <div class="price-sub">
               <span id="priceUsd">COMEX ---</span>
+              <span id="priceBaseNote" class="hint">游戏基线 = 世界金价 − ¥700/g</span>
               <span id="priceBadge" class="badge">连接中…</span>
             </div>
+            <div class="price-world" id="priceWorld">世界金价 ¥---/g</div>
           </div>
           <div id="cardsActive"></div>
         </div>
         <canvas id="chart" width="860" height="260"></canvas>
-        <div class="chart-legend">近30分钟基线走势 · <span class="lg-red">🟥 拉盘</span> <span class="lg-green">🟩 砸盘</span>（1% ~ 10%，2分钟后缓步回归）</div>
+        <div class="chart-legend">近30分钟基线走势 · <span class="lg-red">🟥 上行</span> <span class="lg-green">🟩 下行</span>（方向确定；强度、持续与回归时间全随机）</div>
       </div>
 
       <div class="card trade-card">
@@ -122,15 +125,14 @@
           <button id="stealBtn" class="btn hand">🖐️ 出手</button>
           <span class="hint" id="stealChance">成功率 3%</span>
         </div>
-        <div id="cardHint" class="hint">红/绿卡影响全场基线；黄/蓝卡只影响你自己 10 分钟。</div>
+        <div class="card-slot-lead hint">红/绿卡的强度、影响时长和回归时间每张都随机，连使用者也无法提前知道。</div>
+        <div id="cardHint" class="hint">黄/蓝卡只作用于你自己的下一笔交易；升级与 AI 破产会再发卡。</div>
       </div>
 
       <div class="card rank-card">
-        <h3>🏆 玩家排行榜</h3>
+        <h3>🏆 排行榜 <span class="hint">真人 + AI 同榜</span></h3>
         <ol id="lbList" class="lb-list"></ol>
-        <h3>🤖 AI 金融专家（无技能卡）</h3>
-        <div id="botList" class="bot-list"></div>
-        <div class="hint">AI 破产 → 全员发随机技能卡，AI 重组资金 ×(1 + 0.1×失败次数)</div>
+        <div class="hint">AI 无技能卡；净资产低于资金枯竭线会破产重组，并按失败次数提高重组资金。</div>
       </div>
 
       <div class="card log-card">
@@ -144,6 +146,10 @@
   <section id="tab-chat" class="page">
     <div class="grid-chat">
       <div class="card chat-card">
+        <div id="chatHead" class="chat-head">
+          <span id="chatHeadTitle">🏠 大厅</span>
+          <span id="chatModeHint" class="hint">公共频道</span>
+        </div>
         <div id="roomTabs" class="room-tabs">
           <button class="rtab active" data-room="大厅">🏠 大厅</button>
           <button class="rtab" data-room="闲聊灌水">💦 闲聊灌水</button>
@@ -156,9 +162,9 @@
         </div>
       </div>
       <div class="card chat-side">
-        <h3>👥 在线玩家</h3>
+        <h3>👥 在线玩家 <span id="onlineCount" class="hint">0</span></h3>
         <ul id="chatOnline" class="online-list"></ul>
-        <div class="hint">同一台电脑开多个浏览器窗口（或无痕窗口）即可多人测试。</div>
+        <div class="hint">点击在线玩家可发起私聊。同一台电脑开多个浏览器窗口（或无痕窗口）即可多人测试。</div>
       </div>
     </div>
   </section>

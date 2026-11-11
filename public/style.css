@@ -75,6 +75,19 @@ b { color: var(--gold); }
 .xpbar { height: 5px; background: #232a3d; border-radius: 4px; margin: 6px 0 4px; overflow: hidden; }
 #tbXpFill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--gold2), var(--gold)); border-radius: 4px; transition: width .4s; }
 .me-cash { color: var(--dim); font-size: 12px; }
+.me-day { display: flex; justify-content: flex-end; gap: 8px; color: var(--dim); font-size: 11px; margin-top: 2px; }
+.me-day .daily-cost { color: var(--red); }
+.price-world { color: var(--dim); font-size: 12px; margin-top: 4px; }
+.chat-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid var(--line); font-weight: 700; }
+.online-list li { cursor: default; }
+.online-list li.clickable { cursor: pointer; border-radius: 6px; }
+.online-list li.clickable:hover { background: var(--panel2); color: var(--gold); }
+.online-list li.selected { background: rgba(245,197,66,.08); color: var(--gold); }
+.online-list .self { color: var(--dim); }
+.bot-item { flex-wrap: wrap; gap: 4px 8px; }
+.bot-line { width: 100%; height: 4px; border-radius: 4px; background: #232a3d; overflow: hidden; }
+.bot-line > i { display: block; height: 100%; background: linear-gradient(90deg, var(--green), var(--gold)); }
+.bot-line.low > i { background: linear-gradient(90deg, var(--red), var(--gold)); }
 
 /* ---------- 布局 ---------- */
 main { padding: 18px 22px 40px; max-width: 1500px; margin: 0 auto; }
@@ -121,7 +134,7 @@ textarea { width: 100%; min-height: 80px; resize: vertical; }
 .price-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
 .price-big { font-size: 42px; font-weight: 800; color: var(--gold); font-family: Consolas, monospace; }
 .price-big .unit { font-size: 14px; color: var(--dim); margin-left: 4px; }
-.price-sub { color: var(--dim); font-size: 13px; margin-top: 2px; display: flex; gap: 10px; align-items: center; }
+.price-sub { color: var(--dim); font-size: 13px; margin-top: 2px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .badge { font-size: 11px; padding: 1px 8px; border-radius: 20px; background: var(--panel2); border: 1px solid var(--line); }
 .badge.real { color: var(--green); border-color: rgba(67,217,140,.5); }
 .badge.sim { color: var(--dim); }
@@ -169,6 +182,22 @@ textarea { width: 100%; min-height: 80px; resize: vertical; }
 .lb-list { list-style: none; }
 .lb-list li { display: flex; justify-content: space-between; padding: 5px 2px; border-bottom: 1px dashed #232a3d; font-size: 13px; }
 .lb-list li:first-child { color: var(--gold); }
+.lb-row {
+  display: grid !important; grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center; gap: 8px; padding: 8px 2px !important;
+}
+.lb-row.is-me { background: rgba(245,197,66,.05); border-radius: 8px; }
+.lb-rank { font-family: Consolas, monospace; color: var(--dim); }
+.lb-row:first-child .lb-rank { color: var(--gold); font-weight: 800; }
+.lb-main { min-width: 0; }
+.lb-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lb-meta { color: var(--dim); font-size: 11px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lb-badge { font-size: 10px; border: 1px solid var(--line); border-radius: 20px; padding: 0 5px; color: var(--dim); margin-left: 4px; }
+.lb-badge.ai { color: var(--blue); border-color: rgba(90,167,255,.4); }
+.lb-badge.me { color: var(--gold); border-color: var(--gold2); }
+.lb-equity { text-align: right; font-family: Consolas, monospace; }
+.lb-row.ai { background: rgba(90,167,255,.035); border-radius: 8px; }
+.lb-row .bot-line { grid-column: 2 / -1; }
 .rank-card h3 { margin-top: 14px; }
 .bot-item { display: flex; justify-content: space-between; padding: 5px 2px; border-bottom: 1px dashed #232a3d; font-size: 13px; color: var(--dim); }
 .bot-item .bf { color: var(--red); }
@@ -265,4 +294,18 @@ input.short { width: 110px; }
   .grid-main { grid-template-columns: 1fr; grid-template-areas: "price" "trade" "contract" "cards" "rank" "log"; }
   .grid-chat, .grid-casino, .grid-forum { grid-template-columns: 1fr; }
   .ft-view-card { grid-column: 1; }
+}
+@media (max-width: 850px) {
+  #topbar { flex-wrap: wrap; gap: 8px; padding: 8px 12px; }
+  #tabs { order: 3; width: 100%; overflow-x: auto; padding-bottom: 2px; }
+  .tab { white-space: nowrap; padding: 7px 12px; }
+  .me { flex: 1; min-width: 160px; }
+  main { padding: 12px; }
+  .price-big { font-size: 34px; }
+  .price-head { flex-direction: column; gap: 8px; }
+  .cards-active { justify-content: flex-start; }
+  .chat-list { height: 48vh; }
+  .trade-row { flex-wrap: wrap; }
+  .trade-row input, .trade-row select { min-width: 120px; }
+  .ft-new, .ft-list-card { order: 0; }
 }

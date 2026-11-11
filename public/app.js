@@ -4,11 +4,11 @@
 const $ = id => document.getElementById(id);
 const fmtCny = n => '¥' + Number(n).toLocaleString('zh-CN', { maximumFractionDigits: 2 });
 const CARD_META = {
-  red:    { name: '红卡·拉盘', icon: '🟥', desc: '基线2分钟拉升1~10%，随后2分钟缓步回落' },
-  green:  { name: '绿卡·砸盘', icon: '🟩', desc: '基线2分钟下砸1~10%，随后2分钟缓步回归' },
-  yellow: { name: '黄卡·卖价×1.1', icon: '🟨', desc: '10分钟内你的卖出价×1.1' },
-  blue:   { name: '蓝卡·买价×0.9', icon: '🟦', desc: '10分钟内你的买入价×0.9' },
-  hand:   { name: '手·行窃', icon: '🖐️', desc: '偷指定玩家：3%起步，每次+1%，上限20%' },
+  red:    { name: '红卡·上行动能', icon: '🟥', desc: '向全场注入一段不可预测的上行趋势；强度、持续与回归时间都随机' },
+  green:  { name: '绿卡·下行动能', icon: '🟩', desc: '向全场注入一段不可预测的下行趋势；强度、持续与回归时间都随机' },
+  yellow: { name: '黄卡·卖价×1.1', icon: '🟨', desc: '仅下一笔卖出价×1.1，可留到想卖时再用' },
+  blue:   { name: '蓝卡·买价×0.9', icon: '🟦', desc: '仅下一笔买入价×0.9，可留到想买时再用' },
+  hand:   { name: '手·行窃', icon: '🖐️', desc: '偷指定玩家：3%起步，每次使用+1%，上限20%' },
 };
 
 let token = localStorage.getItem('fp_token') || '';
@@ -16,10 +16,20 @@ let me = null;                 // 自己的私有数据
 let users = [];                // 公开玩家列表
 let hist = [];                 // 本地价格序列 [{t,p}]
 let curRoom = '大厅';
+let chatMode = 'room';         // room | dm
+let dmPeerId = '';
+let dmPeerName = '';
+let chatSeen = new Set();
 let curThread = null;
 let bjTable = null;
 let rlSel = 'red';
 let lastLogId = 0;
+let lastDaily = null;
+let seenNoticeId = 0;
+let noticeUserKey = '';
+
+const AI_NAMES = { trend: '趋势跟踪', meanrev: '高抛低吸', gambler: '3x 梭哈' };
+const BJ_PHASE = { bet: '等待下注', player: '你的回合', done: '本局结束' };
 
 /* ---------------- 基础 ---------------- */
 async function api(path, body, method) {
@@ -42,7 +52,11 @@ function toast(msg) {
 async function tryResume() {
   if (!token) return false;
   const r = await api('/api/state');
-  if (r.ok) { me = r.you; return true; }
+  if (r.ok) {
+    me = r.you;
+    if (r.history) hist = r.history;
+    return true;
+  }
   token = ''; localStorage.removeItem('fp_token');
   return false;
 }
@@ -53,6 +67,7 @@ async function join() {
   if (!r.ok) { toast(r.msg || '加入失败'); return; }
   token = r.token; localStorage.setItem('fp_token', token);
   me = r.you;
+  if (r.history) hist = r.history;
   startGame();
 }
 function startGame() {
@@ -75,28 +90,20 @@ function startGame() {
   }
 }
 let es = null;
-const dbg = [];
 function connectSSE() {
   if (es) es.close();
   es = new EventSource('/api/stream?token=' + encodeURIComponent(token));
-  es.onopen = () => dbg.push('open');
-  es.onerror = e => dbg.push('error readyState=' + e.target.readyState);
-  es.addEventListener('tick', e => { dbg.push('tick'); onTick(JSON.parse(e.data)); });
+  es.addEventListener('tick', e => onTick(JSON.parse(e.data)));
   es.addEventListener('chat', e => {
     const d = JSON.parse(e.data);
-    if (d.room === curRoom) { appendChat(d.m); }
+    if (chatMode === 'room' && d.room === curRoom) appendChat(d.m);
+  });
+  es.addEventListener('dm', e => {
+    const d = JSON.parse(e.data);
+    if (chatMode === 'dm' && d.peerId === dmPeerId) appendChat(d.m);
+    else toast(`💬 ${d.m.from} 发来一条私聊`);
   });
   es.addEventListener('threads', () => { if (!$('tab-forum').classList.contains('active')) loadThreads(); });
-  window.addEventListener('error', ev => dbg.push('JSERR: ' + ev.message + ' @' + (ev.lineno || '?')));
-  setInterval(() => {
-    let el = $('dbgBox');
-    if (!el && location.hash.includes('debug=1')) {
-      el = document.createElement('pre'); el.id = 'dbgBox';
-      el.style.cssText = 'position:fixed;bottom:4px;left:4px;z-index:99;color:#0f0;font-size:11px;background:#000c;padding:4px';
-      document.body.appendChild(el);
-    }
-    if (el) el.textContent = dbg.slice(-6).join('\n') + '\nhist=' + hist.length + ' token=' + (token || 'none');
-  }, 500);
 }
 
 /* ---------------- Tick 渲染 ---------------- */
@@ -104,30 +111,36 @@ function onTick(d) {
   hist.push({ t: d.t, p: d.price.cnyg });
   if (hist.length > 1900) hist.shift();
 
-  // 顶栏
+  // 顶栏 + 私聊状态
   if (d.you) {
+    const prevLevel = me ? me.level : 1;
     me = d.you;
     $('tbName').textContent = me.name;
     $('tbLevel').textContent = 'Lv.' + me.level;
     $('tbCash').textContent = me.cash.toLocaleString('zh-CN', { maximumFractionDigits: 0 });
     $('tbEquity').textContent = Math.round(me.equity).toLocaleString();
     $('tbXpFill').style.width = Math.min(100, me.xp / me.xpNeed * 100) + '%';
-    $('tbXpFill').title = `经验 ${me.xp}/${me.xpNeed}`;
+    $('tbXpFill').title = `经验 ${me.xp}/${me.xpNeed} · 交易盈利每 ¥50 +1 · 21点胜 +15`;
+    if (me.level > prevLevel) toast(`🎉 升级到 Lv.${me.level}，奖励已到账，并抽到一张技能卡`);
+    if (me.blackjack) { bjTable = me.blackjack; renderBj(); }
   }
+  if (d.daily) updateDaily(d.daily);
 
   // 价格
   $('priceBig').textContent = d.price.cnyg.toFixed(2);
   $('priceUsd').textContent = d.price.usd ? `COMEX $${d.price.usd.toFixed(2)}/oz · USDCNY ${d.price.usdcny.toFixed(4)}` : '行情加载中…';
+  $('priceBaseNote').textContent = `游戏基线 = 世界金价 − ¥${Number(d.price.offset || 0).toFixed(0)}/g`;
+  $('priceWorld').textContent = `世界金价 ¥${Number(d.price.worldCnyg || 0).toFixed(2)}/g · 游戏基线 ¥${Number(d.price.base || 0).toFixed(2)}/g`;
   const badge = $('priceBadge');
   if (d.price.real) { badge.textContent = '● 实时行情'; badge.className = 'badge real'; }
   else { badge.textContent = '○ 模拟走势'; badge.className = 'badge sim'; }
 
   // 交易面板
   if (me) {
-    const bp = d.price.cnyg * (me.armedBlue > 0 ? 0.9 : 1);
-    const sp = d.price.cnyg * (me.armedYellow > 0 ? 1.1 : 1);
-    $('tBuy').textContent = bp.toFixed(2) + (me.armedBlue > 0 ? ' 🟦' : '');
-    $('tSell').textContent = sp.toFixed(2) + (me.armedYellow > 0 ? ' 🟨' : '');
+    const bp = d.price.cnyg * (me.pendingBlue ? 0.9 : 1);
+    const sp = d.price.cnyg * (me.pendingYellow ? 1.1 : 1);
+    $('tBuy').textContent = bp.toFixed(2) + (me.pendingBlue ? ' 🟦' : '');
+    $('tSell').textContent = sp.toFixed(2) + (me.pendingYellow ? ' 🟨' : '');
     $('tPos').textContent = me.grams.toFixed(3);
     $('tAvg').textContent = me.avg ? me.avg.toFixed(2) : '--';
     const fl = me.grams > 0 ? (sp - me.avg) * me.grams : 0;
@@ -139,24 +152,39 @@ function onTick(d) {
     renderSteal(d.users);
   }
 
-  // 激活的方向卡
+  // 激活的方向卡：只公布方向与阶段，不公布强度 / 剩余时间
   const ca = $('cardsActive');
   ca.innerHTML = d.cards.map(c => {
-    const end = c.start + c.ramp + c.decay;
-    const left = Math.max(0, Math.round((end - d.t) / 1000));
-    const pct = (Math.abs(c.peak) * 100).toFixed(1);
-    return `<span class="active-card-chip" style="color:${c.type === 'red' ? '#ff5d5d' : '#43d98c'};border-color:currentColor">
-      ${c.type === 'red' ? '🟥 拉升' : '🟩 下砸'} ${pct}% · 剩 ${left}s</span>`;
+    const up = c.type === 'red';
+    const phase = c.phase === 'fall' ? '动能衰减中' : '动能爬升中';
+    return `<span class="active-card-chip ${c.phase}" style="color:${up ? '#ff5d5d' : '#43d98c'};border-color:currentColor">
+      ${up ? '🟥 上行' : '🟩 下行'} · ${phase}</span>`;
   }).join('');
 
-  // 排行榜 & AI
+  // 排行榜：真人与 AI 合并为同一张榜
   users = d.users;
-  $('lbList').innerHTML = d.users.map((u, i) =>
-    `<li><span>${i + 1}. ${esc(u.name)} <small class="hint">Lv.${u.level}</small></span><span>${fmtCny(u.equity)}</span></li>`
-  ).join('') || '<div class="empty">还没有玩家</div>';
-  $('botList').innerHTML = d.bots.map(b =>
-    `<div class="bot-item"><span>🤖 ${esc(b.name)} <small>(${b.strategy})</small></span><span>${fmtCny(b.equity)}${b.failCount ? ` <span class="bf">×${b.failCount}败</span>` : ''}</span></div>`
-  ).join('');
+  const lbRows = [
+    ...d.users.map(u => ({ ...u, kind: 'human' })),
+    ...d.bots.map(b => ({ ...b, id: 'ai-' + b.name, kind: 'ai', name: b.name })),
+  ].sort((a, b) => b.equity - a.equity);
+  $('lbList').innerHTML = lbRows.map((x, i) => {
+    const isAI = x.kind === 'ai';
+    const isMe = !isAI && me && x.id === me.id;
+    const meta = isAI
+      ? `AI · ${AI_NAMES[x.strategy] || x.strategy} · 枯竭线 ${fmtCny(x.bailoutLine)}${x.failCount ? ` · 破产×${x.failCount}` : ''}`
+      : `真人 · Lv.${x.level} · ${x.online ? '在线' : '离线'}`;
+    const pct = isAI ? Math.max(0, Math.min(100, x.equity / (x.bailoutLine * 5) * 100)) : 0;
+    const low = isAI && x.equity < x.bailoutLine * 2;
+    return `<li class="lb-row ${isAI ? 'ai' : ''} ${isMe ? 'is-me' : ''}">
+      <span class="lb-rank">${i + 1}</span>
+      <div class="lb-main">
+        <div class="lb-name">${isAI ? '🤖' : '👤'} ${esc(x.name)} ${isAI ? '<span class="lb-badge">AI</span>' : isMe ? '<span class="lb-badge me">你</span>' : ''}</div>
+        <div class="lb-meta">${meta}</div>
+      </div>
+      <span class="lb-equity">${fmtCny(x.equity)}</span>
+      ${isAI ? `<div class="bot-line ${low ? 'low' : ''}" title="距离资金枯竭线"><i style="width:${pct}%"></i></div>` : ''}
+    </li>`;
+  }).join('') || '<div class="empty">还没有玩家，来当第一个上榜的人</div>';
 
   // 系统动态（增量）
   const logEl = $('logList');
@@ -172,12 +200,45 @@ function onTick(d) {
     while (logEl.children.length > 60) logEl.lastChild.remove();
   }
 
-  // 在线列表
-  $('chatOnline').innerHTML = d.users.map(u =>
-    `<li><span>${esc(u.name)}${u.name === (me && me.name) ? '（你）' : ''}</span><span class="lv">Lv.${u.level}</span></li>`
-  ).join('');
-
+  renderOnline(d);
+  showNotices();
   drawChart(d);
+}
+
+function updateDaily(d) {
+  lastDaily = d;
+  const left = Math.max(0, Math.floor((d.nextAt - Date.now()) / 1000));
+  const hh = String(Math.floor(left / 3600)).padStart(2, '0');
+  const mm = String(Math.floor(left % 3600 / 60)).padStart(2, '0');
+  const ss = String(left % 60).padStart(2, '0');
+  $('tbDay').textContent = `距生活扣款 ${hh}:${mm}:${ss}`;
+  $('tbDay').title = `北京时间每天 00:00 自动扣除生活成本 ¥${d.cost}`;
+}
+
+function showNotices() {
+  if (!me || !me.notices || !me.notices.length) return;
+  if (!me.id) return;
+  if (noticeUserKey !== me.id) {
+    noticeUserKey = me.id;
+    seenNoticeId = Number(localStorage.getItem('fp_notice_' + me.id) || 0);
+  }
+  const fresh = me.notices.filter(n => n.id > seenNoticeId);
+  if (!fresh.length) return;
+  seenNoticeId = Math.max(...me.notices.map(n => n.id));
+  localStorage.setItem('fp_notice_' + me.id, String(seenNoticeId));
+  toast(fresh.slice(-2).map(n => n.text).join(' ｜ '));
+}
+
+function renderOnline(d) {
+  $('onlineCount').textContent = `(${d.onlineCount || 0}/100)`;
+  const list = (d.users || []).filter(u => u.online);
+  $('chatOnline').innerHTML = list.map(u => {
+    const self = me && u.id === me.id;
+    const sel = !self && chatMode === 'dm' && u.id === dmPeerId;
+    return `<li class="${self ? 'self' : 'clickable'} ${sel ? 'selected' : ''}" ${self ? '' : `data-peer="${u.id}" data-name="${esc(u.name)}"`}>
+      <span>${self ? '🟢 ' : ''}${esc(u.name)}${self ? '（你）' : ''}</span><span class="lv">Lv.${u.level}</span>
+    </li>`;
+  }).join('') || '<li class="hint">暂无其他玩家在线，开个无痕窗口就能一起玩</li>';
 }
 
 /* ---------------- 图表 ---------------- */
@@ -210,12 +271,16 @@ function drawChart(d) {
     const t = win[0].t + (win[win.length - 1].t - win[0].t) * i / 3;
     ctx.fillText(new Date(t).toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit' }), X(t) - 20, H - 6);
   }
-  // 红绿卡区间
+  // 方向卡：只标记已发生的区间，不暴露未来持续时间/强度
   for (const c of d.cards) {
-    const s = Math.max(c.start, win[0].t), e = Math.min(c.start + c.ramp + c.decay, win[win.length - 1].t);
-    if (e <= s) continue;
-    ctx.fillStyle = c.type === 'red' ? 'rgba(255,93,93,.10)' : 'rgba(67,217,140,.10)';
-    ctx.fillRect(X(s), padT, X(e) - X(s), H - padT - padB);
+    const started = Math.max(c.startedAt || 0, win[0].t);
+    if (started >= win[win.length - 1].t) continue;
+    ctx.fillStyle = c.type === 'red' ? 'rgba(255,93,93,.07)' : 'rgba(67,217,140,.07)';
+    ctx.fillRect(X(started), padT, X(win[win.length - 1].t) - X(started), H - padT - padB);
+    ctx.strokeStyle = c.type === 'red' ? 'rgba(255,93,93,.35)' : 'rgba(67,217,140,.35)';
+    ctx.setLineDash([3, 4]);
+    ctx.beginPath(); ctx.moveTo(X(started), padT); ctx.lineTo(X(started), H - padB); ctx.stroke();
+    ctx.setLineDash([]);
   }
   // 价格线
   const grad = ctx.createLinearGradient(0, padT, 0, H - padB);
@@ -251,7 +316,9 @@ $('sellAmt').addEventListener('input', () => { if (!$('sellAmt').value) $('sellA
 function renderContracts(p) {
   const box = $('ctList');
   const un = me.unlocks;
-  $('ctUnlock').textContent = un.short ? (un.leverage ? `已解锁做空 + 杠杆最高 ${un.maxL}x` : 'Lv.5 已解锁做空 · Lv.10 解锁杠杆') : 'Lv.5 解锁做空 · Lv.10 解锁杠杆';
+  $('ctUnlock').textContent = un.leverage
+    ? `已解锁做空 + 杠杆最高 ${un.maxL}x（Lv.15→3x / Lv.20→5x）`
+    : un.short ? 'Lv.5 已解锁做空 · Lv.10 解锁杠杆' : 'Lv.5 解锁做空 · Lv.10 解锁杠杆';
   const dirSel = $('ctDir'), lSel = $('ctL');
   dirSel.options[0].disabled = !un.short;
   [...lSel.options].forEach(o => o.disabled = !(Number(o.value) === 1 || (un.leverage && Number(o.value) <= un.maxL)));
@@ -281,14 +348,16 @@ function renderCards() {
   row.innerHTML = '';
   for (const [type, meta] of Object.entries(CARD_META)) {
     const n = me.cards[type] || 0;
+    const pending = (type === 'yellow' && me.pendingYellow) || (type === 'blue' && me.pendingBlue);
     const slot = document.createElement('div');
     slot.className = 'card-slot';
     slot.title = meta.desc;
-    slot.innerHTML = `<span>${meta.icon}</span><span>${meta.name}</span><span class="cnt">×${n}</span>`;
+    slot.innerHTML = `<span>${meta.icon}</span><span>${meta.name}</span><span class="cnt">×${n}</span>${pending ? '<span class="hint">已生效</span>' : ''}`;
     const btn = document.createElement('button');
-    btn.className = 'btn small'; btn.textContent = '使用';
-    btn.disabled = n <= 0 || (type === 'hand' && !$('stealTarget').value);
-    if (type === 'hand') btn.disabled = n <= 0;
+    btn.className = 'btn small';
+    btn.textContent = pending ? '待交易' : '使用';
+    btn.disabled = n <= 0 || pending || (type === 'hand' && !$('stealTarget').value);
+    if (type === 'hand') btn.disabled = n <= 0 || !$('stealTarget').value;
     btn.onclick = async () => {
       if (type === 'hand' && !$('stealTarget').value) { toast('先选一个行窃对象'); return; }
       const r = await api('/api/card', { type, target: $('stealTarget').value || undefined });
@@ -298,13 +367,13 @@ function renderCards() {
     row.appendChild(slot);
   }
   $('stealChance').textContent = `成功率 ${Math.min(20, 3 + (me.stealUses || 0))}%`;
-  $('cardHint').textContent = CARD_META.hand.desc + '。红/绿卡影响全场基线；黄/蓝卡只影响你自己 10 分钟。';
+  $('cardHint').textContent = CARD_META.hand.desc + '。新手送全色卡组；升级、AI 破产会再发卡。';
 }
 function renderSteal(usersList) {
   const sel = $('stealTarget');
   const cur = sel.value;
   sel.innerHTML = '<option value="">— 选择行窃对象 —</option>' +
-    usersList.filter(u => u.name !== me.name).map(u => `<option value="${u.token}">${esc(u.name)}（¥${Math.round(u.equity)}）</option>`).join('');
+    usersList.filter(u => !me || u.id !== me.id).map(u => `<option value="${u.id}">${esc(u.name)}${u.online ? ' 🟢' : ''}（¥${Math.round(u.equity)}）</option>`).join('');
   if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
 }
 $('stealBtn').onclick = async () => {
@@ -313,19 +382,47 @@ $('stealBtn').onclick = async () => {
   toast(r.ok ? '🖐️ ' + r.msg : '❌ ' + r.msg);
 };
 
-/* ---------------- 聊天室 ---------------- */
+/* ---------------- 聊天室 / 私聊 ---------------- */
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
-async function loadChat(room) {
-  const r = await api('/api/chat?room=' + encodeURIComponent(room));
-  if (!r.ok) return;
+function setChatHead(title, hint) {
+  $('chatHeadTitle').textContent = title;
+  $('chatModeHint').textContent = hint;
+}
+function clearChatView() {
   const box = $('chatList');
   box.innerHTML = '';
+  chatSeen = new Set();
+}
+async function loadChat(room) {
+  chatMode = 'room';
+  dmPeerId = ''; dmPeerName = '';
+  curRoom = room;
+  document.querySelectorAll('.rtab').forEach(x => x.classList.toggle('active', x.dataset.room === room));
+  setChatHead('🏠 ' + room, '公共频道');
+  clearChatView();
+  const r = await api('/api/chat?room=' + encodeURIComponent(room));
+  if (!r.ok) { toast('❌ ' + (r.msg || '频道加载失败')); return; }
   r.list.forEach(appendChat);
-  box.scrollTop = box.scrollHeight;
+  $('chatList').scrollTop = $('chatList').scrollHeight;
+}
+async function openDM(peerId, peerName) {
+  chatMode = 'dm';
+  dmPeerId = peerId; dmPeerName = peerName;
+  document.querySelectorAll('.rtab').forEach(x => x.classList.remove('active'));
+  setChatHead(`💬 与 ${peerName} 私聊`, '只有你们二人可见');
+  clearChatView();
+  renderOnline({ users, onlineCount: (users || []).filter(u => u.online).length });
+  const r = await api('/api/dm?peer=' + encodeURIComponent(peerId));
+  if (!r.ok) { toast('❌ ' + (r.msg || '私聊加载失败')); return; }
+  r.list.forEach(appendChat);
+  $('chatList').scrollTop = $('chatList').scrollHeight;
 }
 function appendChat(m) {
+  if (!m) return;
+  if (m.id && chatSeen.has(m.id)) return;
+  if (m.id) chatSeen.add(m.id);
   const box = $('chatList');
-  const self = me && m.from === me.name;
+  const self = me && ((m.fromId && m.fromId === me.id) || (!m.fromId && m.from === me.name));
   const div = document.createElement('div');
   div.className = 'chat-msg' + (self ? ' self' : '');
   div.innerHTML = `<div class="who">${esc(m.from)} · ${new Date(m.t).toLocaleTimeString('zh-CN', { hour12: false })}</div><div class="bubble">${esc(m.text)}</div>`;
@@ -333,18 +430,22 @@ function appendChat(m) {
   while (box.children.length > 150) box.firstChild.remove();
   box.scrollTop = box.scrollHeight;
 }
-document.querySelectorAll('.rtab').forEach(b => b.onclick = () => {
-  document.querySelectorAll('.rtab').forEach(x => x.classList.remove('active'));
-  b.classList.add('active');
-  curRoom = b.dataset.room;
-  loadChat(curRoom);
+document.querySelectorAll('.rtab').forEach(b => b.onclick = () => { loadChat(b.dataset.room); });
+$('chatOnline').addEventListener('click', e => {
+  const li = e.target.closest('[data-peer]');
+  if (!li) return;
+  openDM(li.dataset.peer, li.dataset.name);
 });
-function sendChat() {
+async function sendChat() {
   const inp = $('chatInput');
   const text = inp.value.trim();
   if (!text) return;
   inp.value = '';
-  api('/api/chat', { room: curRoom, text });
+  const r = chatMode === 'dm'
+    ? await api('/api/dm', { peer: dmPeerId, text })
+    : await api('/api/chat', { room: curRoom, text });
+  if (r.ok && r.m) appendChat(r.m);
+  else { toast('❌ ' + (r.msg || '发送失败')); inp.value = text; }
 }
 $('chatSend').onclick = sendChat;
 $('chatInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(); });
@@ -357,31 +458,36 @@ function cardHtml(c) {
 }
 function renderBj() {
   if (!bjTable) return;
-  $('bjDealer').innerHTML = bjTable.dealer.map(cardHtml).join('');
-  $('bjPlayer').innerHTML = bjTable.player.map(cardHtml).join('');
+  $('bjDealer').innerHTML = (bjTable.dealer || []).map(cardHtml).join('');
+  $('bjPlayer').innerHTML = (bjTable.player || []).map(cardHtml).join('');
   $('bjMsg').textContent = bjTable.msg || '';
   const phase = bjTable.phase;
   $('bjBetBtn').disabled = !(phase === 'bet' || phase === 'done');
   $('bjHitBtn').disabled = phase !== 'player';
   $('bjStandBtn').disabled = phase !== 'player';
   $('bjDoubleBtn').disabled = phase !== 'player';
+  $('bjBetBtn').textContent = phase === 'done' ? '再来一局' : '下注发牌';
+}
+function applyBj(r) {
+  if (r.table) { bjTable = r.table; renderBj(); }
+  if (!r.ok) toast('❌ ' + (r.msg || '操作失败'));
+  else if (r.table && r.table.phase === 'done') toast(r.table.msg);
 }
 $('bjBetBtn').onclick = async () => {
   const r = await api('/api/bj', { action: 'bet', amount: Number($('bjBet').value) });
-  if (!r.ok) { toast('❌ ' + r.msg); return; }
-  bjTable = r.table; renderBj();
+  applyBj(r);
 };
 $('bjHitBtn').onclick = async () => {
   const r = await api('/api/bj', { action: 'hit' });
-  if (r.ok) { bjTable = r.table; renderBj(); }
+  applyBj(r);
 };
 $('bjStandBtn').onclick = async () => {
   const r = await api('/api/bj', { action: 'stand' });
-  if (r.ok) { bjTable = r.table; renderBj(); }
+  applyBj(r);
 };
 $('bjDoubleBtn').onclick = async () => {
   const r = await api('/api/bj', { action: 'double' });
-  if (r.ok) { bjTable = r.table; renderBj(); }
+  applyBj(r);
 };
 
 /* ---------------- 轮盘 ---------------- */
@@ -452,7 +558,10 @@ document.querySelectorAll('.tab').forEach(b => b.onclick = () => {
   b.classList.add('active');
   $('tab-' + b.dataset.tab).classList.add('active');
   if (b.dataset.tab === 'forum') loadThreads();
-  if (b.dataset.tab === 'chat') loadChat(curRoom);
+  if (b.dataset.tab === 'chat') {
+    if (chatMode === 'dm' && dmPeerId) openDM(dmPeerId, dmPeerName);
+    else loadChat(curRoom);
+  }
 });
 
 /* ---------------- 启动 ---------------- */

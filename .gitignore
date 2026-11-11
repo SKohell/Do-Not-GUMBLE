@@ -10,7 +10,10 @@ push-github.ps1
 # 本地密钥 / 令牌
 dove_token.txt
 *.token
+token*.txt
 .env
+sse*.txt
+me.json
 
 # 系统与编辑器
 Thumbs.db
